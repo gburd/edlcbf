@@ -1,5 +1,7 @@
+*~
 *.beam
 *.o
 priv
 ebin
+deps
 .eunit

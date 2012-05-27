@@ -1,24 +1,22 @@
-%% -------------------------------------------------------------------
+%% ---------------------------------------------------------------------------
 %%
 %% dlcbf: Erlang NIF wrapper for d-left counting bloom filter
 %%
 %% Copyright (c) 2012 Basho Technologies, Inc. All Rights Reserved.
 %%
-%% This file is provided to you under the Apache License,
-%% Version 2.0 (the "License"); you may not use this file
-%% except in compliance with the License.  You may obtain
-%% a copy of the License at
+%% This file is provided to you under the Apache License, Version 2.0 (the
+%% "License"); you may not use this file except in compliance with the License.
+%% You may obtain a copy of the License at:
 %%
 %%   http://www.apache.org/licenses/LICENSE-2.0
 %%
-%% Unless required by applicable law or agreed to in writing,
-%% software distributed under the License is distributed on an
-%% "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-%% KIND, either express or implied.  See the License for the
-%% specific language governing permissions and limitations
+%% Unless required by applicable law or agreed to in writing, software
+%% distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+%% WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+%% License for the specific language governing permissions and limitations
 %% under the License.
 %%
-%% -------------------------------------------------------------------
+%% ---------------------------------------------------------------------------
 -module(dlcbf).
 -author("Ian Plosker").
 -author("Steve Vinoski").
@@ -29,8 +27,8 @@
          in/2]).
 
 -ifdef(TEST).
--ifdef(EQC).
--include_lib("eqc/include/eqc.hrl").
+-ifdef(TRIQ).
+-include_lib("triq/include/triq.hrl").
 -export([pos_int/0,
          power_of_two/0,
          prop_add_are_members/0,
@@ -51,16 +49,16 @@ nif_stub_error(Line) ->
 
 -spec init() -> ok | {error, any()}.
 init() ->
-    case code:priv_dir(dlht) of
+    SoName = case code:priv_dir(dlht) of
         {error, bad_name} ->
             case code:which(?MODULE) of
                 Filename when is_list(Filename) ->
-                    SoName = filename:join([filename:dirname(Filename),"../priv", "dlcbf"]);
+                    filename:join([filename:dirname(Filename),"../priv", "dlcbf"]);
                 _ ->
-                    SoName = filename:join("../priv", "dlcbf")
+                    filename:join("../priv", "dlcbf")
             end;
          Dir ->
-            SoName = filename:join(Dir, "dlcbf")
+            filename:join(Dir, "dlcbf")
     end,
     erlang:load_nif(SoName, 0).
 
@@ -103,17 +101,20 @@ basic_test() ->
     ?assertNot(in(<<"c">>, D)),
     ?assert(in(<<"b">>, D)).
 
--ifdef(EQC).
+-ifdef(TRIQ).
 
--define(QC_OUT(P),
-        eqc:on_output(fun(Str, Args) -> io:format(user, Str, Args) end, P)).
+-define(TRIQ_OUT(P),
+        triq:on_output(fun(Str, Args) -> io:format(user, Str, Args) end, P)).
 
-qc(P) ->
-    ?assert(eqc:quickcheck(?QC_OUT(P))).
+property_test() ->
+     true == check().
 
-basic_quickcheck_test_() ->
-    Prop = eqc:numtests(5000, dlcbf:prop_add_are_members()),
-    {timeout, 2*60, fun() -> qc(Prop) end}.
+check(P) ->
+    ?assert(triq:check(?TRIQ_OUT(P))).
+
+basic_triq_test_() ->
+    Prop = triq:numtests(5000, dlcbf:prop_add_are_members()),
+    {timeout, 2*60, fun() -> check(Prop) end}.
 
 pos_int() ->
     ?LET(N, int(), abs(N) + 1).
@@ -143,7 +144,7 @@ check_membership(M, N, D, B) ->
                   end, N).
 
 keys() ->
-    eqc_gen:non_empty(list(eqc_gen:non_empty(binary()))).
+    triq_gen:non_empty(list(triq_gen:non_empty(binary()))).
 
 ops(Keys) ->
     {oneof([add, delete]), oneof(Keys)}.
@@ -159,7 +160,7 @@ apply_ops([{delete, Key}|T], Dlcbf, Acc) ->
 
 prop_add_delete() ->
     ?LET(Keys, keys(),
-         ?FORALL(Ops0, eqc_gen:non_empty(list(ops(Keys))),
+         ?FORALL(Ops0, triq_gen:non_empty(list(ops(Keys))),
                  begin
                      {ok, Dlcbf} = new(4, 2048),
                      Ops = lists:usort(Ops0),
@@ -174,9 +175,9 @@ prop_add_delete() ->
                  end)).
 
 prop_add_delete_test_() ->
-    Prop = eqc:numtests(5000, dlcbf:prop_add_delete()),
-    {timeout, 2*60, fun() -> qc(Prop) end}.
+    Prop = triq:numtests(5000, dlcbf:prop_add_delete()),
+    {timeout, 2*60, fun() -> check(Prop) end}.
 
--endif. % EQC
+-endif. % TRIQ
 
 -endif.
